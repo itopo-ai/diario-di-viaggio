@@ -1,0 +1,16 @@
+{
+  "name": "Diario di Viaggio",
+  "short_name": "Diario",
+  "description": "Il tuo diario di viaggio: luoghi, cibo, hotel, autista, spese e foto, giorno per giorno.",
+  "lang": "it",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#EEF3F1",
+  "theme_color": "#0F5E5A",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
