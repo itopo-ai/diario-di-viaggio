@@ -215,7 +215,7 @@ const nice = s => { const d = parseD(s); return WD[d.getDay()]+" "+d.getDate()+"
 const num = v => { const n = parseFloat(String(v).replace(",", ".")); return isFinite(n) ? n : 0; };
 const eur = n => n.toLocaleString("it-IT", {style:"currency", currency:"EUR", maximumFractionDigits:0});
 function toast(msg){ const t = document.createElement("div"); t.className="toast"; t.textContent=msg; document.body.appendChild(t); setTimeout(()=>t.remove(), 2200); }
-const APP_VERSION = "1.1.0";
+const APP_VERSION = "1.2.0";
 const BLANK = "data:image/gif;base64,R0lGODlhAQABAAAAACw=";
 const urlCache = new Map();
 function photoUrl(p){ return (p && urlCache.get(p.id)) || BLANK; }
@@ -513,8 +513,8 @@ function renderViaggio(){
     <label class="label" for="t-budget">Budget totale (€)</label><input class="field" id="t-budget" data-trip="budget" inputmode="decimal" value="${esc(t.budget)}">
     <p class="muted" style="font-size:13px">Le modifiche si salvano da sole.</p></div>
   <div class="card"><h2 style="font-size:18px">Riconoscimento con la fotocamera</h2>
-    <p class="muted" style="font-size:14px">Inquadra un piatto o un luogo: Claude lo riconosce e compila la scheda. Serve una chiave API di Claude, che resta salvata solo su questo iPhone.</p>
-    <label class="label" for="apikey">Chiave API di Claude</label>
+    <p class="muted" style="font-size:14px">Inquadra un piatto o un luogo e Claude ti dice cos'è. <b>Senza chiave</b> è gratis: l'app prepara foto e domanda da inviare all'app Claude. <b>Con una chiave API</b> (facoltativa, a pagamento) il riconoscimento è automatico. La chiave resta solo su questo iPhone.</p>
+    <label class="label" for="apikey">Chiave API di Claude (facoltativa)</label>
     <input class="field" id="apikey" type="password" autocomplete="off" placeholder="sk-ant-…" value="${esc(local.read("apikey",""))}">
     <span class="label">Modello</span>
     <div class="chips">${[["claude-haiku-5-5","Veloce ed economico"],["claude-sonnet-5-5","Più preciso"]].map(([m,l])=>`<button type="button" class="chip ${getModel()===m?"on":""}" data-model="${m}">${l}</button>`).join("")}</div>
@@ -663,7 +663,7 @@ let tripTimer = null;
 document.addEventListener("focusout", e=>{ if (e.target.dataset && e.target.dataset.path && S.dayId) { /* refresh completion */ const p = pct(currentDay()); const bar = $(".progress i"); if (bar) bar.style.width = p+"%"; } });
 $("#filepick").addEventListener("change", e=>{ const fs = [...e.target.files]; if (fs.length) addPhotos(fs); });
 $("#restorepick").addEventListener("change", e=>{ const f = e.target.files[0]; if (f) importBackup(f); });
-$("#camerapick").addEventListener("change", e=>{ const f = e.target.files[0]; if (f && scanTarget) recognize(f); });
+$("#camerapick").addEventListener("change", e=>{ const f = e.target.files[0]; if (!f || !scanTarget) return; if (local.read("apikey", "")) recognize(f); else askClaude(f); });
 document.addEventListener("change", e=>{ if (e.target.id === "apikey"){ local.write("apikey", e.target.value.trim()); toast(e.target.value.trim() ? "Chiave salvata su questo iPhone" : "Chiave rimossa"); } });
 document.addEventListener("click", e=>{ const g = e.target.closest("#gpsbtn"); if (!g) return; const v = !local.read("usegps", true); local.write("usegps", v); g.classList.toggle("on", v); });
 window.addEventListener("pagehide", ()=>{ flushSave(); });
@@ -691,12 +691,6 @@ const SEED = {"id":"sri-lanka-2026","name":"Sri Lanka","destination":"Sri Lanka 
 function getModel(){ return local.read("model", "claude-haiku-5-5"); }
 let scanTarget = null;
 function startScan(kind, i){
-  if (!local.read("apikey", "")){
-    const o = sheet(`<h2>Attiva il riconoscimento</h2><p class="muted">Per riconoscere piatti e luoghi serve una chiave API di Claude. Creala su console.anthropic.com (API Keys → Create Key), aggiungi un piccolo credito e incollala nella scheda Viaggio.</p><div class="actions"><button class="btn" data-no>Più tardi</button><button class="btn primary" data-ok>Vai a Viaggio</button></div>`);
-    o.querySelector("[data-no]").onclick = ()=>o.remove();
-    o.querySelector("[data-ok]").onclick = async ()=>{ o.remove(); await flushSave(); S.dayId = null; S.tab = "viaggio"; render(); setTimeout(()=>{ const k = $("#apikey"); if (k) k.scrollIntoView({block:"center"}); }, 50); };
-    return;
-  }
   scanTarget = {kind, i, day: S.dayId};
   const c = $("#camerapick"); c.value = ""; c.click();
 }
@@ -712,21 +706,27 @@ async function toBase64Jpeg(file, max){
   const data = await blobToData(blob);
   return {blob, b64: data.split(",")[1]};
 }
-function buildPrompt(kind, d, item, coords){
+function buildPrompt(kind, d, item, coords, plain){
   const t = S.trip, where = t.destination || t.name;
   if (kind === "food") return `Sei un esperto di cucina locale. Il viaggiatore si trova in ${where}, il ${nice(d.date)}${d.title ? " (tappa: "+d.title+")" : ""}${item.meal ? ", pasto: "+item.meal : ""}.
 Identifica il piatto nella foto. Non inventare: se non sei sicuro, dillo.
-Rispondi SOLO con un oggetto JSON, senza altro testo:
+${plain ? `Rispondi in italiano esattamente in questo formato, senza altro testo:
+NOME: nome del piatto (nome nella lingua del posto)
+DESCRIZIONE: massimo 2 frasi su ingredienti principali e come si mangia
+PICCANTE: no, poco, medio o molto` : `Rispondi SOLO con un oggetto JSON, senza altro testo:
 {"nome":"nome del piatto in italiano","nome_locale":"nome nella lingua del posto o vuoto","descrizione":"massimo 2 frasi: ingredienti principali e come si mangia","piccante":"no|poco|medio|molto","sicurezza":"alta|media|bassa"}
-Se nella foto non c'è cibo, usa "nome":"" e spiega in "descrizione".`;
+Se nella foto non c'è cibo, usa "nome":"" e spiega in "descrizione".`}`;
   const planned = d.places.map(p=>p.name).filter(Boolean).join("; ");
   return `Sei una guida turistica esperta. Il viaggiatore si trova in ${where}, il ${nice(d.date)}${d.title ? " (tappa: "+d.title+")" : ""}.
 ${planned ? "Luoghi in programma oggi: "+planned+"." : ""}
 ${coords ? `Posizione GPS approssimativa: ${coords.latitude.toFixed(4)}, ${coords.longitude.toFixed(4)}.` : ""}
 Identifica il luogo, monumento o paesaggio nella foto. Non inventare: se non sei sicuro, dillo.
-Rispondi SOLO con un oggetto JSON, senza altro testo:
+${plain ? `Rispondi in italiano esattamente in questo formato, senza altro testo:
+NOME: nome del luogo
+DESCRIZIONE: massimo 3 frasi su cos'è, un po' di storia e una curiosità
+CONSIGLIO: un consiglio pratico per la visita` : `Rispondi SOLO con un oggetto JSON, senza altro testo:
 {"nome":"nome del luogo","descrizione":"massimo 3 frasi: cos'è, un po' di storia e una curiosità","consiglio":"un consiglio pratico per la visita, massimo 1 frase","sicurezza":"alta|media|bassa"}
-Se non riconosci il luogo, usa "nome":"" e descrivi cosa vedi in "descrizione".`;
+Se non riconosci il luogo, usa "nome":"" e descrivi cosa vedi in "descrizione".`}`;
 }
 async function recognize(file){
   const tgt = scanTarget; scanTarget = null;
@@ -763,6 +763,66 @@ async function recognize(file){
     toast(e && e.message && !/fetch|network|load failed/i.test(e.message) ? e.message : "Serve la connessione a internet per il riconoscimento.");
   }
 }
+async function applyResult(tgt, d, item, r, blob){
+  const saved = await assets.upload(blob); item.photos.push({id: saved.id});
+  if (r && r.nome){
+    if (tgt.kind === "food"){
+      item.dish = r.nome + (r.nome_locale ? " ("+r.nome_locale+")" : "");
+      const extra = [r.descrizione, r.piccante && !/^no\b/i.test(r.piccante) ? "Piccante: "+r.piccante : ""].filter(Boolean).join(" ");
+      if (extra) item.note = item.note ? item.note + "\n" + extra : extra;
+    } else {
+      item.name = r.nome + (r.nome_locale ? " ("+r.nome_locale+")" : ""); item.seen = true;
+      const extra = [r.descrizione, r.consiglio ? "Consiglio: "+r.consiglio : ""].filter(Boolean).join(" ");
+      if (extra) item.note = item.note ? item.note + "\n" + extra : extra;
+    }
+  }
+  if (S.dayId === d.id){ S.dirty = true; flushSave(); renderDay(); } else { store.saveDay(S.trip.id, d); }
+  toast(r && r.nome ? "Scheda compilata con la risposta di Claude" : "Foto aggiunta");
+}
+function parseAnswer(text){
+  const t = String(text || "").trim(); if (!t) return null;
+  const j = t.match(/\{[\s\S]*\}/); if (j){ try { const o = JSON.parse(j[0]); if (o.nome !== undefined) return o; } catch(e){} }
+  const get = k => { const m = t.match(new RegExp("^\\s*\\**" + k + "\\**\\s*:\\s*(.+)$", "im")); return m ? m[1].replace(/\*+/g, "").trim() : ""; };
+  let nome = get("NOME"), descrizione = get("DESCRIZIONE");
+  if (!nome){ const lines = t.split(/\n+/).map(x=>x.trim()).filter(Boolean); nome = lines[0].replace(/[*#]/g, "").slice(0, 80); descrizione = descrizione || lines.slice(1).join(" "); }
+  let nome_locale = ""; const m = nome.match(/^(.*?)\s*\(([^)]+)\)\s*$/); if (m){ nome = m[1]; nome_locale = m[2]; }
+  return {nome, nome_locale, descrizione, piccante: get("PICCANTE"), consiglio: get("CONSIGLIO")};
+}
+async function askClaude(file){
+  const tgt = scanTarget; scanTarget = null;
+  const d = S.days.find(x=>x.id===tgt.day); if (!d) return;
+  const item = (tgt.kind === "food" ? d.food : d.places)[tgt.i]; if (!item) return;
+  const coords = tgt.kind === "places" ? await getPosition() : null;
+  const blob = await compress(file, 1600);
+  const prompt = buildPrompt(tgt.kind, d, item, coords, true);
+  const photoFile = new File([blob], (tgt.kind === "food" ? "piatto" : "luogo") + ".jpg", {type: "image/jpeg"});
+  const preview = URL.createObjectURL(blob);
+  const o = sheet(`<h2>Chiedi a Claude</h2>
+    <div class="result"><img src="${preview}" alt=""></div>
+    <p class="muted" style="font-size:14px;margin:4px 0 8px">Gratis con l'app Claude. Tre passaggi:</p>
+    <button class="btn primary" style="width:100%" data-share>1 · Copia la domanda e invia la foto a Claude</button>
+    <p class="muted" style="font-size:13px;margin:6px 0 12px">Nel menu che si apre scegli l'app Claude, poi nella chat tieni premuto e incolla la domanda.</p>
+    <label class="label" for="answer">2 · Copia la risposta di Claude e incollala qui</label>
+    <textarea class="field" id="answer" placeholder="NOME: …&#10;DESCRIZIONE: …"></textarea>
+    <div class="actions"><button class="btn" data-photo>Solo la foto</button><button class="btn primary" data-fill>3 · Compila la scheda</button></div>
+    <button class="del" data-cancel style="display:block;margin:12px auto 0">Annulla</button>`);
+  const close = ()=>{ o.remove(); URL.revokeObjectURL(preview); };
+  o.querySelector("[data-share]").onclick = async ()=>{
+    // both calls start inside the tap, so Safari allows them
+    const copy = navigator.clipboard ? navigator.clipboard.writeText(prompt).then(()=>true, ()=>false) : Promise.resolve(false);
+    try {
+      if (navigator.canShare && navigator.canShare({files:[photoFile]})) { await navigator.share({files:[photoFile], text: prompt}); }
+      else { toast((await copy) ? "Domanda copiata: salva la foto e inviala a Claude" : "Condivisione non disponibile su questo browser"); }
+    } catch(e){ if (!(e && e.name === "AbortError")) toast("Condivisione non riuscita"); }
+  };
+  o.querySelector("[data-fill]").onclick = async ()=>{
+    const r = parseAnswer($("#answer").value);
+    if (!r || !r.nome){ toast("Incolla prima la risposta di Claude"); return; }
+    close(); await applyResult(tgt, d, item, r, blob);
+  };
+  o.querySelector("[data-photo]").onclick = async ()=>{ close(); await applyResult(tgt, d, item, null, blob); };
+  o.querySelector("[data-cancel]").onclick = close;
+}
 function showResult(tgt, d, item, r, blob){
   const preview = URL.createObjectURL(blob);
   const conf = {alta:"Molto sicuro", media:"Abbastanza sicuro", bassa:"Poco sicuro"}[r.sicurezza] || "";
@@ -777,21 +837,8 @@ function showResult(tgt, d, item, r, blob){
     <button class="del" data-cancel style="display:block;margin:12px auto 0">Annulla</button>`);
   const done = async (useText)=>{
     o.remove();
-    const saved = await assets.upload(blob); item.photos.push({id: saved.id});
-    if (useText){
-      if (tgt.kind === "food"){
-        item.dish = r.nome + (r.nome_locale ? " ("+r.nome_locale+")" : "");
-        const extra = [r.descrizione, r.piccante && r.piccante !== "no" ? "Piccante: "+r.piccante : ""].filter(Boolean).join(" ");
-        item.note = item.note ? item.note + "\n" + extra : extra;
-      } else {
-        item.name = r.nome; item.seen = true;
-        const extra = [r.descrizione, r.consiglio ? "Consiglio: "+r.consiglio : ""].filter(Boolean).join(" ");
-        item.note = item.note ? item.note + "\n" + extra : extra;
-      }
-    }
     URL.revokeObjectURL(preview);
-    if (S.dayId === d.id){ S.dirty = true; flushSave(); renderDay(); } else { store.saveDay(S.trip.id, d); }
-    toast(useText ? "Scheda compilata da Claude" : "Foto aggiunta");
+    await applyResult(tgt, d, item, useText ? r : null, blob);
   };
   o.querySelector("[data-use]") && (o.querySelector("[data-use]").onclick = ()=>done(true));
   o.querySelector("[data-photo]").onclick = ()=>done(false);

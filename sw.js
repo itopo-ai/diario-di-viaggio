@@ -1,7 +1,7 @@
 // Diario di Viaggio – service worker
 // Network first: when online the app always loads the latest version published on GitHub;
 // offline it opens from the copy saved on the phone.
-const VERSION = "1.1.0";
+const VERSION = "1.2.0";
 const CACHE = "diario-" + VERSION;
 const SHELL = ["./", "./index.html", "./manifest.webmanifest", "./icons/icon-192.png", "./icons/icon-512.png", "./icons/apple-touch-icon.png"];
 
