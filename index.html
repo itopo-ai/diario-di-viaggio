@@ -125,6 +125,12 @@ textarea.field{resize:vertical;min-height:64px}
 .addphoto{width:76px;height:76px;border-radius:12px;border:2px dashed var(--lagoon);background:var(--lagoon-soft);color:var(--lagoon);display:grid;place-items:center;font-size:12px;font-weight:700;padding:4px}
 .addphoto svg{width:24px;height:24px;margin:0 auto}
 .addphoto.busy{opacity:.6}
+.scan{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;margin-top:10px;padding:12px;border:0;border-radius:12px;background:var(--ink);color:var(--bg);font-weight:700}
+.scan svg{width:20px;height:20px}
+.scan.busy{opacity:.7}
+.result{background:var(--surface-2);border-radius:14px;padding:14px;margin:8px 0}
+.result img{width:100%;max-height:220px;object-fit:cover;border-radius:12px;margin-bottom:10px}
+.conf{display:inline-block;font-size:12px;font-weight:700;border-radius:99px;padding:3px 10px;background:var(--lagoon-soft);color:var(--lagoon)}
 .addrow{margin-top:10px;width:100%;border:1px dashed var(--line);background:transparent;border-radius:12px;padding:12px;font-weight:600;color:var(--lagoon)}
 .del{border:0;background:none;color:var(--muted);font-size:13px;padding:6px 0;text-decoration:underline}
 .copybtn{width:100%;margin-top:16px;padding:14px;border-radius:14px;border:1px solid var(--lagoon);background:var(--surface);color:var(--lagoon);font-weight:700}
@@ -171,6 +177,7 @@ nav.tabs button.on{color:var(--lagoon)}
 </nav>
 <input type="file" id="filepick" accept="image/*" multiple class="hidden">
 <input type="file" id="restorepick" accept="application/json,.json" class="hidden">
+<input type="file" id="camerapick" accept="image/*" capture="environment" class="hidden">
 <script>
 (function(){
 "use strict";
@@ -189,6 +196,7 @@ const I = {
   sun:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>',
   wallet:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18M16 15h2"/></svg>',
   heart:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/></svg>',
+  scan:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3"/><circle cx="12" cy="12" r="3.5"/></svg>',
   spark:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/></svg>'
 };
 const MEALS = ["Colazione","Pranzo","Cena","Spuntino"];
@@ -207,7 +215,7 @@ const nice = s => { const d = parseD(s); return WD[d.getDay()]+" "+d.getDate()+"
 const num = v => { const n = parseFloat(String(v).replace(",", ".")); return isFinite(n) ? n : 0; };
 const eur = n => n.toLocaleString("it-IT", {style:"currency", currency:"EUR", maximumFractionDigits:0});
 function toast(msg){ const t = document.createElement("div"); t.className="toast"; t.textContent=msg; document.body.appendChild(t); setTimeout(()=>t.remove(), 2200); }
-const APP_VERSION = "1.0.0";
+const APP_VERSION = "1.1.0";
 const BLANK = "data:image/gif;base64,R0lGODlhAQABAAAAACw=";
 const urlCache = new Map();
 function photoUrl(p){ return (p && urlCache.get(p.id)) || BLANK; }
@@ -415,6 +423,7 @@ function renderDay(){
         <button type="button" class="check ${pl.seen?"on":""}" data-toggle="places.${i}.seen">${I.check} Visto</button></div>
       ${stars("places."+i+".rating", pl.rating, "Voto "+pl.name)}
       <textarea class="field" id="pln-${pl.id}" data-path="places.${i}.note" placeholder="Cosa ti è piaciuto? Cosa no?">${esc(pl.note)}</textarea>
+      <button class="scan" data-scan="places" data-i="${i}">${I.scan} Riconosci il luogo con la fotocamera</button>
       ${photoBlock("places."+i+".photos", pl.photos)}
       <button class="del" data-remove="places" data-i="${i}">Elimina luogo</button></div>`).join("")}
     <button class="addrow" data-add="places">+ Aggiungi luogo</button></section>
@@ -426,6 +435,8 @@ function renderDay(){
       <div class="grid2"><input class="field" id="fd-${f.id}" data-path="food.${i}.dish" value="${esc(f.dish)}" placeholder="Piatto"><input class="field" id="fp-${f.id}" data-path="food.${i}.place" value="${esc(f.place)}" placeholder="Locale"></div>
       <span class="label">Qualità</span>${stars("food."+i+".rating", f.rating, "Voto cibo")}
       <input class="field" id="fc-${f.id}" data-path="food.${i}.price" value="${esc(f.price)}" inputmode="decimal" placeholder="Prezzo in ${esc(S.trip.currency||"valuta locale")}">
+      <textarea class="field" id="fn-${f.id}" data-path="food.${i}.note" placeholder="Com'era? Ingredienti, piccante…" style="margin-top:8px">${esc(f.note||"")}</textarea>
+      <button class="scan" data-scan="food" data-i="${i}">${I.scan} Riconosci il piatto con la fotocamera</button>
       ${photoBlock("food."+i+".photos", f.photos)}
       <button class="del" data-remove="food" data-i="${i}">Elimina pasto</button></div>`).join("")}
     <button class="addrow" data-add="food">+ Aggiungi pasto</button></section>
@@ -501,6 +512,14 @@ function renderViaggio(){
       <div><label class="label" for="t-rate">Quanti ${esc(t.currency||"locali")} per 1 €</label><input class="field" id="t-rate" data-trip="rate" inputmode="decimal" value="${esc(t.rate)}" placeholder="es. 330"></div></div>
     <label class="label" for="t-budget">Budget totale (€)</label><input class="field" id="t-budget" data-trip="budget" inputmode="decimal" value="${esc(t.budget)}">
     <p class="muted" style="font-size:13px">Le modifiche si salvano da sole.</p></div>
+  <div class="card"><h2 style="font-size:18px">Riconoscimento con la fotocamera</h2>
+    <p class="muted" style="font-size:14px">Inquadra un piatto o un luogo: Claude lo riconosce e compila la scheda. Serve una chiave API di Claude, che resta salvata solo su questo iPhone.</p>
+    <label class="label" for="apikey">Chiave API di Claude</label>
+    <input class="field" id="apikey" type="password" autocomplete="off" placeholder="sk-ant-…" value="${esc(local.read("apikey",""))}">
+    <span class="label">Modello</span>
+    <div class="chips">${[["claude-haiku-5-5","Veloce ed economico"],["claude-sonnet-5-5","Più preciso"]].map(([m,l])=>`<button type="button" class="chip ${getModel()===m?"on":""}" data-model="${m}">${l}</button>`).join("")}</div>
+    <label class="check ${local.read("usegps",true)?"on":""}" style="margin-top:10px" id="gpsbtn">${I.check} Usa la posizione per riconoscere i luoghi</label>
+  </div>
   ${(t.plan||[]).length ? `<div class="card"><h2 style="font-size:18px">Programma</h2><ul class="plan">${t.plan.map(p=>`<li><b>${nice(p.date)}</b>: ${esc(p.title)}</li>`).join("")}</ul>
     <p class="muted" style="font-size:13px">Quando crei un giorno, titolo e luoghi arrivano già dal programma.</p></div>` : ""}
   <button class="cta" id="newtrip">${I.plus} Nuovo viaggio</button>
@@ -546,11 +565,11 @@ function switchTripSheet(){
 
 /* ---------- photos ---------- */
 let photoTarget = null;
-async function compress(file){
+async function compress(file, maxSide){
   const url = URL.createObjectURL(file);
   try {
     const img = await new Promise((res, rej)=>{ const im = new Image(); im.onload=()=>res(im); im.onerror=rej; im.src=url; });
-    const max = 1600, sc = Math.min(1, max/Math.max(img.naturalWidth, img.naturalHeight));
+    const max = maxSide || 1600, sc = Math.min(1, max/Math.max(img.naturalWidth, img.naturalHeight));
     const c = document.createElement("canvas"); c.width = Math.round(img.naturalWidth*sc); c.height = Math.round(img.naturalHeight*sc);
     c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
     return await new Promise(res=>c.toBlob(b=>res(b || file), "image/jpeg", .82));
@@ -598,6 +617,8 @@ document.addEventListener("click", async e=>{
   if (b.dataset.star){ const cur = getPath(d, b.dataset.star), v = +b.dataset.v; setPath(d, b.dataset.star, cur === v ? 0 : v); scheduleSave(); renderDay(); return; }
   if (b.dataset.set){ const cur = getPath(d, b.dataset.set); setPath(d, b.dataset.set, cur === b.dataset.v ? "" : b.dataset.v); scheduleSave(); renderDay(); return; }
   if (b.dataset.toggle){ setPath(d, b.dataset.toggle, !getPath(d, b.dataset.toggle)); scheduleSave(); renderDay(); return; }
+  if (b.dataset.model){ local.write("model", b.dataset.model); renderViaggio(); toast("Modello salvato"); return; }
+  if (b.dataset.scan){ return startScan(b.dataset.scan, +b.dataset.i); }
   if (b.dataset.addphoto){ photoTarget = b.dataset.addphoto; const fp = $("#filepick"); fp.value = ""; fp.click(); return; }
   if (b.dataset.unphoto){ const gone = getPath(d, b.dataset.unphoto).splice(+b.dataset.i, 1)[0]; scheduleSave(); renderDay(); if (gone) idb.del("photos", gone.id).catch(()=>{}); return; }
   if (b.dataset.add){
@@ -642,6 +663,9 @@ let tripTimer = null;
 document.addEventListener("focusout", e=>{ if (e.target.dataset && e.target.dataset.path && S.dayId) { /* refresh completion */ const p = pct(currentDay()); const bar = $(".progress i"); if (bar) bar.style.width = p+"%"; } });
 $("#filepick").addEventListener("change", e=>{ const fs = [...e.target.files]; if (fs.length) addPhotos(fs); });
 $("#restorepick").addEventListener("change", e=>{ const f = e.target.files[0]; if (f) importBackup(f); });
+$("#camerapick").addEventListener("change", e=>{ const f = e.target.files[0]; if (f && scanTarget) recognize(f); });
+document.addEventListener("change", e=>{ if (e.target.id === "apikey"){ local.write("apikey", e.target.value.trim()); toast(e.target.value.trim() ? "Chiave salvata su questo iPhone" : "Chiave rimossa"); } });
+document.addEventListener("click", e=>{ const g = e.target.closest("#gpsbtn"); if (!g) return; const v = !local.read("usegps", true); local.write("usegps", v); g.classList.toggle("on", v); });
 window.addEventListener("pagehide", ()=>{ flushSave(); });
 document.addEventListener("visibilitychange", ()=>{ if (document.visibilityState === "hidden") flushSave(); });
 
@@ -662,6 +686,117 @@ const SEED = {"id":"sri-lanka-2026","name":"Sri Lanka","destination":"Sri Lanka 
  {"date":"2026-12-10","title":"Diyaluma → Mirissa","places":["Ravana Falls (sosta)","Cascate di Diyaluma","Spiaggia e tramonto a Mirissa"],"hotel":"Mirissa","ai":"Fai riassumere i voti del cibo: piatti migliori e peggiori"},
  {"date":"2026-12-11","title":"Mirissa → Galle → aeroporto","places":["Mattina al mare a Mirissa","Galle Fort"],"hotel":"In volo","ai":"Chiedi una recensione dell'autista basata sulle tue note"},
  {"date":"2026-12-12","title":"Rientro in Italia","places":["Volo di rientro"],"hotel":"Casa","ai":"Chiedi a Claude cosa migliorare in questa app per il prossimo viaggio"}]};
+
+/* ---------- recognition with Claude ---------- */
+function getModel(){ return local.read("model", "claude-haiku-5-5"); }
+let scanTarget = null;
+function startScan(kind, i){
+  if (!local.read("apikey", "")){
+    const o = sheet(`<h2>Attiva il riconoscimento</h2><p class="muted">Per riconoscere piatti e luoghi serve una chiave API di Claude. Creala su console.anthropic.com (API Keys → Create Key), aggiungi un piccolo credito e incollala nella scheda Viaggio.</p><div class="actions"><button class="btn" data-no>Più tardi</button><button class="btn primary" data-ok>Vai a Viaggio</button></div>`);
+    o.querySelector("[data-no]").onclick = ()=>o.remove();
+    o.querySelector("[data-ok]").onclick = async ()=>{ o.remove(); await flushSave(); S.dayId = null; S.tab = "viaggio"; render(); setTimeout(()=>{ const k = $("#apikey"); if (k) k.scrollIntoView({block:"center"}); }, 50); };
+    return;
+  }
+  scanTarget = {kind, i, day: S.dayId};
+  const c = $("#camerapick"); c.value = ""; c.click();
+}
+function getPosition(){
+  return new Promise(res=>{
+    if (!local.read("usegps", true) || !navigator.geolocation) return res(null);
+    const t = setTimeout(()=>res(null), 5000);
+    navigator.geolocation.getCurrentPosition(p=>{ clearTimeout(t); res(p.coords); }, ()=>{ clearTimeout(t); res(null); }, {enableHighAccuracy:false, timeout:5000, maximumAge:120000});
+  });
+}
+async function toBase64Jpeg(file, max){
+  const blob = await compress(file, max);
+  const data = await blobToData(blob);
+  return {blob, b64: data.split(",")[1]};
+}
+function buildPrompt(kind, d, item, coords){
+  const t = S.trip, where = t.destination || t.name;
+  if (kind === "food") return `Sei un esperto di cucina locale. Il viaggiatore si trova in ${where}, il ${nice(d.date)}${d.title ? " (tappa: "+d.title+")" : ""}${item.meal ? ", pasto: "+item.meal : ""}.
+Identifica il piatto nella foto. Non inventare: se non sei sicuro, dillo.
+Rispondi SOLO con un oggetto JSON, senza altro testo:
+{"nome":"nome del piatto in italiano","nome_locale":"nome nella lingua del posto o vuoto","descrizione":"massimo 2 frasi: ingredienti principali e come si mangia","piccante":"no|poco|medio|molto","sicurezza":"alta|media|bassa"}
+Se nella foto non c'è cibo, usa "nome":"" e spiega in "descrizione".`;
+  const planned = d.places.map(p=>p.name).filter(Boolean).join("; ");
+  return `Sei una guida turistica esperta. Il viaggiatore si trova in ${where}, il ${nice(d.date)}${d.title ? " (tappa: "+d.title+")" : ""}.
+${planned ? "Luoghi in programma oggi: "+planned+"." : ""}
+${coords ? `Posizione GPS approssimativa: ${coords.latitude.toFixed(4)}, ${coords.longitude.toFixed(4)}.` : ""}
+Identifica il luogo, monumento o paesaggio nella foto. Non inventare: se non sei sicuro, dillo.
+Rispondi SOLO con un oggetto JSON, senza altro testo:
+{"nome":"nome del luogo","descrizione":"massimo 3 frasi: cos'è, un po' di storia e una curiosità","consiglio":"un consiglio pratico per la visita, massimo 1 frase","sicurezza":"alta|media|bassa"}
+Se non riconosci il luogo, usa "nome":"" e descrivi cosa vedi in "descrizione".`;
+}
+async function recognize(file){
+  const tgt = scanTarget; scanTarget = null;
+  const d = S.days.find(x=>x.id===tgt.day); if (!d) return;
+  const list = tgt.kind === "food" ? d.food : d.places, item = list[tgt.i]; if (!item) return;
+  const btn = document.querySelector(`[data-scan="${tgt.kind}"][data-i="${tgt.i}"]`);
+  const label = btn ? btn.innerHTML : "";
+  if (btn){ btn.classList.add("busy"); btn.innerHTML = I.scan + " Claude sta guardando la foto…"; }
+  const reset = ()=>{ if (btn && document.body.contains(btn)){ btn.classList.remove("busy"); btn.innerHTML = label; } };
+  try {
+    const [img, coords] = await Promise.all([toBase64Jpeg(file, 1280), tgt.kind === "places" ? getPosition() : Promise.resolve(null)]);
+    const res = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {"x-api-key": local.read("apikey",""), "anthropic-version": "2023-06-01", "content-type": "application/json", "anthropic-dangerous-direct-browser-access": "true"},
+      body: JSON.stringify({model: getModel(), max_tokens: 600, messages: [{role: "user", content: [
+        {type: "image", source: {type: "base64", media_type: "image/jpeg", data: img.b64}},
+        {type: "text", text: buildPrompt(tgt.kind, d, item, coords)}]}]})
+    });
+    const body = await res.json().catch(()=>({}));
+    if (!res.ok){
+      const msg = (body.error && body.error.message) || "";
+      if (res.status === 401) throw new Error("La chiave API non è valida: controllala nella scheda Viaggio.");
+      if (/credit/i.test(msg)) throw new Error("Il credito API è esaurito: ricaricalo su console.anthropic.com.");
+      if (res.status === 429 || res.status === 529 || res.status >= 500) throw new Error("Claude è molto occupato in questo momento: riprova tra poco.");
+      throw new Error("Riconoscimento non riuscito" + (msg ? ": " + msg : "."));
+    }
+    const text = (body.content || []).filter(c=>c.type==="text").map(c=>c.text).join("");
+    const m = text.match(/\{[\s\S]*\}/); if (!m) throw new Error("Claude non ha dato una risposta leggibile: riprova.");
+    const r = JSON.parse(m[0]);
+    reset();
+    showResult(tgt, d, item, r, img.blob);
+  } catch(e){
+    reset();
+    toast(e && e.message && !/fetch|network|load failed/i.test(e.message) ? e.message : "Serve la connessione a internet per il riconoscimento.");
+  }
+}
+function showResult(tgt, d, item, r, blob){
+  const preview = URL.createObjectURL(blob);
+  const conf = {alta:"Molto sicuro", media:"Abbastanza sicuro", bassa:"Poco sicuro"}[r.sicurezza] || "";
+  const title = r.nome ? esc(r.nome) + (r.nome_locale ? ` <span class="muted" style="font-weight:500">(${esc(r.nome_locale)})</span>` : "") : "Non riconosciuto";
+  const o = sheet(`<h2>${tgt.kind === "food" ? "Piatto riconosciuto" : "Luogo riconosciuto"}</h2>
+    <div class="result"><img src="${preview}" alt="">
+      <h3 style="font-size:20px">${title}</h3>${conf ? `<span class="conf">${conf}</span>` : ""}
+      <p>${esc(r.descrizione||"")}</p>
+      ${r.piccante && r.piccante !== "no" ? `<p class="muted">Piccante: ${esc(r.piccante)}</p>` : ""}
+      ${r.consiglio ? `<p class="muted">Consiglio: ${esc(r.consiglio)}</p>` : ""}</div>
+    <div class="actions"><button class="btn" data-photo>Solo la foto</button>${r.nome ? `<button class="btn primary" data-use>Usa</button>` : ""}</div>
+    <button class="del" data-cancel style="display:block;margin:12px auto 0">Annulla</button>`);
+  const done = async (useText)=>{
+    o.remove();
+    const saved = await assets.upload(blob); item.photos.push({id: saved.id});
+    if (useText){
+      if (tgt.kind === "food"){
+        item.dish = r.nome + (r.nome_locale ? " ("+r.nome_locale+")" : "");
+        const extra = [r.descrizione, r.piccante && r.piccante !== "no" ? "Piccante: "+r.piccante : ""].filter(Boolean).join(" ");
+        item.note = item.note ? item.note + "\n" + extra : extra;
+      } else {
+        item.name = r.nome; item.seen = true;
+        const extra = [r.descrizione, r.consiglio ? "Consiglio: "+r.consiglio : ""].filter(Boolean).join(" ");
+        item.note = item.note ? item.note + "\n" + extra : extra;
+      }
+    }
+    URL.revokeObjectURL(preview);
+    if (S.dayId === d.id){ S.dirty = true; flushSave(); renderDay(); } else { store.saveDay(S.trip.id, d); }
+    toast(useText ? "Scheda compilata da Claude" : "Foto aggiunta");
+  };
+  o.querySelector("[data-use]") && (o.querySelector("[data-use]").onclick = ()=>done(true));
+  o.querySelector("[data-photo]").onclick = ()=>done(false);
+  o.querySelector("[data-cancel]").onclick = ()=>{ o.remove(); URL.revokeObjectURL(preview); };
+}
 
 /* ---------- backup ---------- */
 const blobToData = b => new Promise((res, rej)=>{ const r = new FileReader(); r.onload=()=>res(r.result); r.onerror=rej; r.readAsDataURL(b); });
