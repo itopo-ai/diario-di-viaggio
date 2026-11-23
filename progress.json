@@ -1,0 +1,30 @@
+{
+  "app": "Diario di Viaggio",
+  "goal": "Un'app completa e gratuita per i viaggiatori, distribuita al pubblico, con funzioni AI in versione Premium.",
+  "stage": "Prototipo personale",
+  "version": "1.2.2",
+  "updated": "2026-11-23",
+  "url": "https://itopo-ai.github.io/diario-di-viaggio/",
+  "milestones": [
+    {"title": "Diario giornaliero: luoghi, cibo, hotel, autista, meteo, spese", "status": "fatto", "version": "1.0.0"},
+    {"title": "Foto salvate sul telefono e funzionamento offline", "status": "fatto", "version": "1.0.0"},
+    {"title": "Backup e ripristino dei dati", "status": "fatto", "version": "1.0.0"},
+    {"title": "Riconoscimento automatico di piatti e luoghi con API (chiave personale)", "status": "fatto", "version": "1.1.0"},
+    {"title": "Modalità gratuita «Chiedi a Claude»", "status": "fatto", "version": "1.2.0"},
+    {"title": "Collaudo sul campo: viaggio in Sri Lanka", "status": "in corso"},
+    {"title": "Correzioni dopo il viaggio e semplificazione dell'interfaccia", "status": "da fare"},
+    {"title": "Prima apertura guidata per nuovi utenti (onboarding)", "status": "da fare"},
+    {"title": "Riconoscimento AI senza chiave: server con limiti gratuiti mensili", "status": "da fare"},
+    {"title": "Versione Premium e modello di ricavi", "status": "da fare"},
+    {"title": "Nome, marchio e pagina di presentazione", "status": "da fare"},
+    {"title": "Privacy policy e condizioni d'uso", "status": "da fare"},
+    {"title": "Test con 10 viaggiatori esterni", "status": "da fare"},
+    {"title": "Pubblicazione al pubblico", "status": "da fare"}
+  ],
+  "changelog": [
+    {"version": "1.2.2", "date": "2026-11-23", "text": "Separata dall'app di studio; aggiunto il file di avanzamento del progetto."},
+    {"version": "1.2.0", "date": "2026-11-22", "text": "Modalità gratuita «Chiedi a Claude» per riconoscere piatti e luoghi senza chiave API."},
+    {"version": "1.1.0", "date": "2026-11-22", "text": "Riconoscimento automatico con la fotocamera tramite API di Claude."},
+    {"version": "1.0.0", "date": "2026-11-22", "text": "Prima versione installabile: diario, foto, spese, backup, aggiornamenti automatici."}
+  ]
+}

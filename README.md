@@ -22,8 +22,6 @@ Le modifiche pubblicate in questo repository arrivano da sole: quando l'app è o
 - `sw.js` – funzionamento offline e aggiornamenti
 - `manifest.webmanifest`, `icons/` – nome e icona sulla schermata Home
 
-## Percorso AI
+## Avanzamento del progetto
 
-Nella cartella `percorso/` c'è la seconda app: il percorso di studio di 20 settimane (100 sessioni) per diventare operatore AI.
-Si installa da Safari aprendo `/percorso/` e toccando Condividi → Aggiungi alla schermata Home.
-I contenuti sono in `percorso/curriculum.json`: aggiornarli non cancella i progressi, che restano sul telefono.
+`progress.json` descrive lo stato di sviluppo dell'app verso la versione pubblica (traguardi e modifiche). È letto dall'app di studio dell'autore: aggiornalo a ogni rilascio.

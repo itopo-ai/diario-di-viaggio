@@ -215,7 +215,7 @@ const nice = s => { const d = parseD(s); return WD[d.getDay()]+" "+d.getDate()+"
 const num = v => { const n = parseFloat(String(v).replace(",", ".")); return isFinite(n) ? n : 0; };
 const eur = n => n.toLocaleString("it-IT", {style:"currency", currency:"EUR", maximumFractionDigits:0});
 function toast(msg){ const t = document.createElement("div"); t.className="toast"; t.textContent=msg; document.body.appendChild(t); setTimeout(()=>t.remove(), 2200); }
-const APP_VERSION = "1.2.1";
+const APP_VERSION = "1.2.2";
 const BLANK = "data:image/gif;base64,R0lGODlhAQABAAAAACw=";
 const urlCache = new Map();
 function photoUrl(p){ return (p && urlCache.get(p.id)) || BLANK; }
@@ -530,8 +530,7 @@ function renderViaggio(){
       <button class="btn" id="restore">Ripristina</button>
     </div>
     <button class="btn" id="checkupd" style="width:100%;margin-top:8px">Cerca aggiornamenti</button>
-    <p class="muted" style="font-size:12px;margin-top:10px">Versione ${APP_VERSION}</p></div>
-  <div class="card"><h2 style="font-size:18px">Percorso AI</h2><p class="muted" style="font-size:14px">Il tuo percorso di studio di 20 settimane.</p><a class="btn primary" style="display:block;text-align:center;text-decoration:none" href="percorso/">Apri il Percorso AI</a></div>`;
+    <p class="muted" style="font-size:12px;margin-top:10px">Versione ${APP_VERSION}</p></div>`;
 }
 
 /* ---------- sheets ---------- */
