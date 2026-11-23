@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Percorso AI</title>
+<meta name="theme-color" content="#22306B">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Percorso AI">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* Layout: one-column study companion; today card, phase bars, session runner with steps + exercise, bottom tabs */
+:root{
+  --bg:#F3F4FA; --surface:#FFFFFF; --surface-2:#F4F6FC; --ink:#161D38; --muted:#5D6685; --line:#DDE1EE;
+  --primary:#3149C9; --primary-soft:#E3E8FB; --mark:#F6C33B; --mark-soft:#FFF3CF; --good:#1D9A68; --good-soft:#DDF3EA; --bad:#C8453B; --bad-soft:#FBE4E1;
+  --display:"Bricolage Grotesque", system-ui, sans-serif; --body:"Figtree", -apple-system, system-ui, sans-serif;
+  --radius:18px; --shadow:0 6px 20px rgba(22,29,56,.07); color-scheme:light;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#0E1222; --surface:#171D33; --surface-2:#1D2440; --ink:#E9ECF8; --muted:#9AA3C4; --line:#2A3354;
+  --primary:#7E93F2; --primary-soft:#232D58; --mark:#F6C33B; --mark-soft:#3A3115; --good:#4CC995; --good-soft:#173A2D; --bad:#F07A70; --bad-soft:#3E1E1C;
+  --shadow:0 6px 20px rgba(0,0,0,.35); color-scheme:dark; } }
+:root[data-theme="dark"]{
+  --bg:#0E1222; --surface:#171D33; --surface-2:#1D2440; --ink:#E9ECF8; --muted:#9AA3C4; --line:#2A3354;
+  --primary:#7E93F2; --primary-soft:#232D58; --mark:#F6C33B; --mark-soft:#3A3115; --good:#4CC995; --good-soft:#173A2D; --bad:#F07A70; --bad-soft:#3E1E1C;
+  --shadow:0 6px 20px rgba(0,0,0,.35); color-scheme:dark; }
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.45;-webkit-font-smoothing:antialiased;
+  padding:env(safe-area-inset-top) env(safe-area-inset-right) 0 env(safe-area-inset-left)}
+button,input,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:3px solid var(--primary);outline-offset:2px;border-radius:8px}
+a{color:var(--primary)}
+.wrap{max-width:560px;margin:0 auto;padding:16px 16px calc(96px + env(safe-area-inset-bottom))}
+h1,h2,h3{font-family:var(--display);margin:0;text-wrap:balance;letter-spacing:-.01em}
+.muted{color:var(--muted)}
+.row{display:flex;align-items:center;gap:10px}
+.grow{flex:1;min-width:0}
+.hidden{display:none!important}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:16px;box-shadow:var(--shadow);margin-top:14px}
+.small{font-size:13px}
+
+/* Hero */
+.hero{border-radius:24px;padding:20px;color:#fff;background:linear-gradient(150deg,#1C2760 0%,#3149C9 70%,#5A6FE0 100%);box-shadow:var(--shadow);position:relative;overflow:hidden}
+.hero::after{content:"";position:absolute;right:-30px;bottom:-50px;width:170px;height:170px;border-radius:50%;background:var(--mark);opacity:.22}
+.hero .kicker{font-size:13px;font-weight:600;opacity:.85}
+.hero h1{font-size:28px;font-weight:800;margin:4px 0 2px}
+.hstats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:14px;position:relative;z-index:1}
+.hstat{background:rgba(255,255,255,.14);border-radius:14px;padding:8px;text-align:center}
+.hstat b{display:block;font-family:var(--display);font-size:22px;font-variant-numeric:tabular-nums}
+.hstat span{font-size:11px;opacity:.9}
+
+/* Today */
+.today{display:block;width:100%;text-align:left;margin-top:16px;border:0;border-radius:22px;padding:18px;background:var(--mark);color:#2A2000;box-shadow:0 10px 22px rgba(246,195,59,.35)}
+.today .lbl{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;opacity:.8}
+.today h2{font-size:22px;margin:4px 0 6px}
+.today .meta{font-size:14px;font-weight:600;opacity:.85}
+.today .go{margin-top:12px;display:inline-flex;align-items:center;gap:6px;background:#2A2000;color:var(--mark);border-radius:999px;padding:8px 14px;font-weight:700;font-size:14px}
+
+/* Phase bars */
+.phase{display:grid;grid-template-columns:28px 1fr auto;gap:10px;align-items:center;margin:12px 0}
+.phase .num{width:28px;height:28px;border-radius:9px;background:var(--primary-soft);color:var(--primary);display:grid;place-items:center;font-weight:800;font-family:var(--display)}
+.phase .num.done{background:var(--good);color:#fff}
+.track{height:10px;background:var(--surface-2);border-radius:99px;overflow:hidden;margin-top:4px}
+.track i{display:block;height:100%;background:var(--primary);border-radius:99px;transition:width .4s}
+.phase b{font-variant-numeric:tabular-nums;font-size:14px}
+
+/* Session list */
+.sitem{display:flex;align-items:center;gap:12px;width:100%;text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px;margin-top:8px}
+.dot{flex:none;width:30px;height:30px;border-radius:50%;border:2px solid var(--line);display:grid;place-items:center;font-size:12px;font-weight:800;color:var(--muted)}
+.dot.done{background:var(--good);border-color:var(--good);color:#fff}
+.dot.prog{border-color:var(--mark);background:var(--mark-soft);color:#7A5B00}
+.dot.next{border-color:var(--primary);color:var(--primary)}
+.dot svg{width:15px;height:15px}
+.sitem h3{font-size:15px;font-weight:600;font-family:var(--body)}
+.weekhead{margin:22px 0 4px;font-size:13px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+.phasehead{margin:26px 0 0;font-size:22px}
+
+/* Session view */
+.topbar{position:sticky;top:0;z-index:5;background:var(--bg);display:flex;align-items:center;gap:8px;padding:10px 0}
+.iconbtn{width:40px;height:40px;border-radius:12px;border:1px solid var(--line);background:var(--surface);display:grid;place-items:center;flex:none}
+.iconbtn svg{width:20px;height:20px}
+.stitle{font-size:26px;font-weight:800;margin-top:4px}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.pill{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:6px 12px;font-size:13px;font-weight:600;background:var(--surface);border:1px solid var(--line)}
+.goal{background:var(--primary-soft);border-radius:14px;padding:12px 14px;margin-top:14px;font-weight:500}
+.goal b{display:block;font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--primary);margin-bottom:2px}
+.platform{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:10px;padding:12px 14px;border-radius:14px;background:var(--surface);border:1px solid var(--line);text-decoration:none;color:var(--ink);font-weight:600}
+.platform span.muted{font-weight:500;font-size:13px;display:block}
+.platform svg{width:18px;height:18px;flex:none;color:var(--primary)}
+.progress{height:8px;background:var(--line);border-radius:99px;overflow:hidden;margin:14px 0 4px}
+.progress i{display:block;height:100%;background:linear-gradient(90deg,var(--primary),var(--good));transition:width .4s}
+.sec{font-size:18px;margin:22px 0 4px}
+.step{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:14px;margin-top:10px;box-shadow:var(--shadow)}
+.step.isdone{border-color:var(--good)}
+.stepmain{display:flex;gap:12px;align-items:flex-start}
+.check{flex:none;width:30px;height:30px;border-radius:9px;border:2px solid var(--line);background:var(--surface-2);display:grid;place-items:center;padding:0}
+.check.on{background:var(--good);border-color:var(--good);color:#fff}
+.check svg{width:16px;height:16px}
+.stepnum{font-size:12px;font-weight:700;color:var(--muted)}
+.steptext{font-size:15px}
+.steptext .min{display:inline-block;margin-left:4px;font-size:12px;font-weight:700;color:var(--primary);background:var(--primary-soft);border-radius:6px;padding:1px 6px}
+.levels{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap;padding-left:42px}
+.levels span{font-size:12px;color:var(--muted);width:100%}
+.lvl{border:1px solid var(--line);background:var(--surface-2);border-radius:999px;padding:6px 12px;font-size:13px;font-weight:600;min-height:34px}
+.lvl.on.l1{background:var(--bad-soft);border-color:var(--bad);color:var(--bad)}
+.lvl.on.l2{background:var(--mark-soft);border-color:var(--mark);color:#7A5B00}
+.lvl.on.l3{background:var(--good-soft);border-color:var(--good);color:var(--good)}
+.exercise{border:2px solid var(--primary);border-radius:18px;padding:16px;margin-top:10px;background:var(--surface)}
+.exercise .tag{display:inline-block;font-size:12px;font-weight:700;color:var(--primary);background:var(--primary-soft);border-radius:999px;padding:3px 10px;margin-bottom:8px}
+.q{margin-top:14px}
+.q p{font-weight:600;margin:0 0 8px}
+.opt{display:block;width:100%;text-align:left;margin-top:6px;padding:12px;border-radius:12px;border:1px solid var(--line);background:var(--surface-2);font-size:15px}
+.opt.right{background:var(--good-soft);border-color:var(--good)}
+.opt.wrong{background:var(--bad-soft);border-color:var(--bad)}
+.why{margin-top:8px;font-size:14px;padding:10px 12px;border-radius:12px;background:var(--surface-2)}
+.crit{display:flex;gap:10px;align-items:flex-start;width:100%;text-align:left;border:0;background:none;padding:8px 0;font-size:15px}
+.result{margin-top:14px;padding:12px;border-radius:12px;font-weight:700;text-align:center}
+.result.ok{background:var(--good-soft);color:var(--good)}
+.result.ko{background:var(--mark-soft);color:#7A5B00}
+.field{width:100%;border:1px solid var(--line);background:var(--surface-2);border-radius:12px;padding:10px 12px;min-height:80px;resize:vertical}
+.btn{display:block;width:100%;padding:15px;border-radius:14px;border:1px solid var(--line);background:var(--surface);font-weight:700;margin-top:10px}
+.btn.primary{background:var(--primary);border-color:var(--primary);color:#fff}
+.btn.good{background:var(--good);border-color:var(--good);color:#fff}
+.btn:disabled{opacity:.5}
+
+nav.tabs{position:fixed;left:0;right:0;bottom:0;z-index:10;background:var(--surface);border-top:1px solid var(--line);display:flex;justify-content:center;padding:6px 8px calc(6px + env(safe-area-inset-bottom))}
+nav.tabs button{flex:1;max-width:160px;border:0;background:none;display:flex;flex-direction:column;align-items:center;gap:2px;font-size:12px;font-weight:600;color:var(--muted);padding:6px}
+nav.tabs button svg{width:24px;height:24px}
+nav.tabs button.on{color:var(--primary)}
+.overlay{position:fixed;inset:0;z-index:30;background:rgba(8,10,20,.55);display:flex;align-items:flex-end;justify-content:center}
+.sheet{background:var(--surface);width:100%;max-width:560px;border-radius:24px 24px 0 0;padding:20px 16px calc(20px + env(safe-area-inset-bottom))}
+.actions{display:flex;gap:8px;margin-top:14px}
+.actions .btn{margin-top:0}
+.toast{position:fixed;left:50%;bottom:calc(90px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:50;background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:999px;font-weight:600;font-size:14px;max-width:90%;text-align:center}
+.celebrate{text-align:center;padding:8px 0}
+.celebrate .big{font-family:var(--display);font-size:56px;line-height:1}
+@media (prefers-reduced-motion: reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap" id="app"><p class="muted">Caricamento del percorso…</p></div>
+<nav class="tabs" id="tabs">
+  <button data-tab="oggi" class="on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Oggi</button>
+  <button data-tab="percorso"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h10"/></svg>Percorso</button>
+  <button data-tab="impostazioni"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>Impostazioni</button>
+</nav>
+<input type="file" id="restorepick" accept="application/json,.json" class="hidden">
+<script>
+(function(){
+"use strict";
+const APP_VERSION = "1.0.0";
+const I = {
+  check:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg>',
+  back:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>',
+  ext:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg>',
+  arrow:'<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>'
+};
+const LEVELS = [[1,"Non ancora"],[2,"In parte"],[3,"Raggiunto"]];
+const $ = (s, r=document) => r.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+function toast(m){ const t = document.createElement("div"); t.className="toast"; t.textContent=m; document.body.appendChild(t); setTimeout(()=>t.remove(), 2400); }
+const today = () => { const d = new Date(); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); };
+
+/* ---------- progress (stays on this phone) ---------- */
+const KEY = "pf:progress";
+let P = { sessions:{}, days:[] };
+function loadP(){ try { const v = JSON.parse(localStorage.getItem(KEY) || "null"); if (v && v.sessions) P = v; } catch(e){} P.days = P.days || []; }
+function saveP(){ try { localStorage.setItem(KEY, JSON.stringify(P)); } catch(e){ toast("Non riesco a salvare: spazio pieno o modalità privata"); } }
+function sp(id){ return P.sessions[id] || (P.sessions[id] = {steps:{}, quiz:{}, criteria:{}, notes:""}); }
+function markActive(){ const t = today(); if (!P.days.includes(t)) { P.days.push(t); if (P.days.length > 400) P.days = P.days.slice(-400); } }
+
+/* ---------- curriculum ---------- */
+let C = null, ALL = [];
+async function loadC(){
+  const r = await fetch("curriculum.json", {cache:"no-cache"});
+  C = await r.json();
+  ALL = C.weeks.flatMap(w => w.sessions.map((s, i) => ({...s, week:w.n, idx:i+1, phase:w.phase, weekTitle:w.title})));
+}
+const byId = id => ALL.find(s => s.id === id);
+function stepsDone(s){ const p = P.sessions[s.id]; return p ? s.steps.filter(st => p.steps[st.id] && p.steps[st.id].done).length : 0; }
+function isDone(s){ const p = P.sessions[s.id]; return !!(p && p.completedAt); }
+function status(s){ if (isDone(s)) return "done"; return stepsDone(s) > 0 ? "prog" : "todo"; }
+function nextSession(){ return ALL.find(s => !isDone(s)) || null; }
+function exercisePassed(s){
+  const p = P.sessions[s.id] || {}, ex = s.exercise;
+  if (ex.type === "quiz") return ex.questions.every((q, i) => p.quiz && p.quiz[i] === q.answer);
+  return ex.criteria.every((c, i) => p.criteria && p.criteria[i]);
+}
+function streak(){
+  const set = new Set(P.days); let n = 0; const d = new Date();
+  if (!set.has(today())) d.setDate(d.getDate()-1);
+  for (;;) { const k = d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); if (set.has(k)) { n++; d.setDate(d.getDate()-1); } else break; }
+  return n;
+}
+
+/* ---------- state & render ---------- */
+const S = { tab:"oggi", open:null };
+function render(){
+  document.querySelectorAll("nav.tabs button").forEach(b => b.classList.toggle("on", b.dataset.tab === S.tab));
+  $("#tabs").classList.toggle("hidden", !!S.open);
+  if (S.open) return renderSession(byId(S.open));
+  if (S.tab === "percorso") return renderPath();
+  if (S.tab === "impostazioni") return renderSettings();
+  renderToday();
+}
+function dotHtml(s, n){
+  const st = status(s);
+  return `<span class="dot ${st === "done" ? "done" : st === "prog" ? "prog" : (n && n.id === s.id ? "next" : "")}">${st === "done" ? I.check : s.idx}</span>`;
+}
+function renderToday(){
+  const done = ALL.filter(isDone).length, pct = Math.round(100*done/ALL.length), n = nextSession();
+  const curWeek = n ? n.week : 20, ph = C.phases.find(p => curWeek >= p.weeks[0] && curWeek <= p.weeks[1]);
+  const week = C.weeks.find(w => w.n === curWeek);
+  $("#app").innerHTML = `
+  <section class="hero"><div class="kicker">Fase ${ph.n} · ${esc(ph.title)}</div>
+    <h1>Settimana ${curWeek} di 20</h1><div class="small" style="opacity:.9">${esc(week.title)}</div>
+    <div class="hstats"><div class="hstat"><b>${pct}%</b><span>percorso</span></div>
+      <div class="hstat"><b>${done}/${ALL.length}</b><span>sessioni</span></div>
+      <div class="hstat"><b>${streak()}</b><span>giorni di fila</span></div></div></section>
+  ${n ? `<button class="today" data-open="${n.id}"><div class="lbl">Sessione di oggi · ${n.minutes} min</div><h2>${esc(n.title)}</h2>
+      <div class="meta">${esc(C.platforms[n.platform].name)} · ${n.steps.length} passi · ${stepsDone(n) ? stepsDone(n)+" già fatti" : "da iniziare"}</div>
+      <span class="go">${stepsDone(n) ? "Continua" : "Inizia"} ${I.arrow}</span></button>`
+     : `<div class="card celebrate"><div class="big">🎓</div><h2>Percorso completato</h2><p class="muted">Hai concluso tutte le 100 sessioni.</p></div>`}
+  <div class="card"><h2 style="font-size:18px">Questa settimana</h2>
+    ${week.sessions.map(s0 => { const s = byId(s0.id); return `<button class="sitem" data-open="${s.id}">${dotHtml(s, n)}<div class="grow"><h3>${esc(s.title)}</h3><div class="muted small">${esc(C.platforms[s.platform].name)}</div></div></button>`; }).join("")}</div>
+  <div class="card"><h2 style="font-size:18px">Le 5 fasi</h2>
+    ${C.phases.map(p => { const ss = ALL.filter(s => s.phase === p.n), d = ss.filter(isDone).length, q = Math.round(100*d/ss.length);
+      return `<div class="phase"><span class="num ${q===100?"done":""}">${p.n}</span><div><div style="font-weight:600;font-size:15px">${esc(p.title)}</div><div class="track"><i style="width:${q}%"></i></div></div><b>${q}%</b></div>`; }).join("")}</div>`;
+}
+function renderPath(){
+  const n = nextSession();
+  $("#app").innerHTML = `<h1 style="font-size:28px;margin:8px 0 0">Il percorso</h1><p class="muted" style="margin:4px 0 0">20 settimane, 5 sessioni da circa un'ora. Puoi aprire qualsiasi sessione.</p>
+  ${C.phases.map(p => `<h2 class="phasehead">Fase ${p.n} · ${esc(p.title)}</h2><p class="muted small" style="margin:4px 0 0">${esc(p.goal)}</p>
+    ${C.weeks.filter(w => w.phase === p.n).map(w => `<div class="weekhead">Settimana ${w.n} · ${esc(w.title)}</div>
+      ${w.sessions.map(s0 => { const s = byId(s0.id); return `<button class="sitem" data-open="${s.id}">${dotHtml(s, n)}<div class="grow"><h3>${esc(s.title)}</h3><div class="muted small">${esc(C.platforms[s.platform].name)} · ${stepsDone(s)}/${s.steps.length} passi</div></div></button>`; }).join("")}`).join("")}`).join("")}`;
+  if (n) { const el = document.querySelector(`[data-open="${n.id}"]`); if (el) el.scrollIntoView({block:"center"}); }
+}
+function stepHtml(s, st, i){
+  const p = sp(s.id).steps[st.id] || {};
+  const m = st.text.match(/^(.*?)(?:\s(\d+)\s?min)?$/);
+  const text = m ? m[1] : st.text, min = m && m[2] && m[2] !== "0" ? m[2] : "";
+  return `<div class="step ${p.done?"isdone":""}"><div class="stepmain">
+      <button class="check ${p.done?"on":""}" data-step="${st.id}" aria-label="Segna come fatto">${p.done?I.check:""}</button>
+      <div class="grow"><div class="stepnum">Passo ${i+1}</div><div class="steptext">${esc(text)}${min?`<span class="min">${min} min</span>`:""}</div></div></div>
+    <div class="levels"><span>Livello di apprendimento</span>${LEVELS.map(([v,l]) => `<button class="lvl l${v} ${p.level===v?"on":""}" data-level="${st.id}" data-v="${v}">${l}</button>`).join("")}</div></div>`;
+}
+function exerciseHtml(s){
+  const ex = s.exercise, p = sp(s.id);
+  let body = "";
+  if (ex.type === "quiz"){
+    body = ex.questions.map((q, qi) => {
+      const chosen = p.quiz[qi];
+      return `<div class="q"><p>${qi+1}. ${esc(q.q)}</p>${q.options.map((o, oi) => {
+        let cls = ""; if (chosen !== undefined){ if (oi === q.answer && chosen === q.answer) cls = "right"; else if (oi === chosen) cls = "wrong"; }
+        return `<button class="opt ${cls}" data-quiz="${qi}" data-v="${oi}">${esc(o)}</button>`; }).join("")}
+        ${chosen !== undefined ? `<div class="why"><b>${chosen === q.answer ? "Giusto." : "Non ancora: riprova."}</b> ${chosen === q.answer ? esc(q.why) : ""}</div>` : ""}</div>`;
+    }).join("");
+  } else {
+    body = `<p style="font-weight:600;margin:6px 0 10px">${esc(ex.task)}</p><div class="muted small">Ce l'hai fatta se:</div>
+      ${ex.criteria.map((c, ci) => `<button class="crit" data-crit="${ci}"><span class="check ${p.criteria[ci]?"on":""}">${p.criteria[ci]?I.check:""}</span><span>${esc(c)}</span></button>`).join("")}`;
+  }
+  const passed = exercisePassed(s), tried = ex.type === "quiz" ? Object.keys(p.quiz).length > 0 : Object.values(p.criteria).some(Boolean);
+  return `<div class="exercise"><span class="tag">${ex.type === "quiz" ? "Quiz di verifica" : "Prova pratica"}</span>
+    ${body}${tried ? `<div class="result ${passed?"ok":"ko"}">${passed ? "Obiettivo raggiunto" : ex.type === "quiz" ? "Rivedi le risposte sbagliate" : "Completa tutti i criteri"}</div>` : ""}</div>`;
+}
+function renderSession(s){
+  if (!s){ S.open = null; return render(); }
+  const p = sp(s.id), done = stepsDone(s), pct = Math.round(100*done/s.steps.length), plat = C.platforms[s.platform];
+  const all = done === s.steps.length, passed = exercisePassed(s);
+  const sy = window.scrollY;
+  $("#app").innerHTML = `
+  <div class="topbar"><button class="iconbtn" id="back" aria-label="Indietro">${I.back}</button>
+    <div class="grow muted small" style="font-weight:600">Settimana ${s.week} · Sessione ${s.idx} di 5</div>
+    ${isDone(s) ? `<span class="pill" style="color:var(--good)">${I.check.replace('<svg','<svg width="14" height="14"')} Completata</span>` : ""}</div>
+  <h1 class="stitle">${esc(s.title)}</h1>
+  <div class="chips"><span class="pill">${s.minutes} min</span><span class="pill">Fase ${s.phase}</span><span class="pill">${s.steps.length} passi</span></div>
+  <div class="goal"><b>Obiettivo</b>${esc(s.goal)}</div>
+  <a class="platform" href="${esc(plat.url)}" target="_blank" rel="noopener"><div><span class="muted">Dove studi</span>${esc(plat.name)}</div>${I.ext}</a>
+  <div class="progress"><i style="width:${pct}%"></i></div><div class="muted small">${done} di ${s.steps.length} passi fatti</div>
+  <h2 class="sec">Passo per passo</h2>
+  ${s.steps.map((st, i) => stepHtml(s, st, i)).join("")}
+  <h2 class="sec">Esercizio di fine sessione</h2>
+  ${exerciseHtml(s)}
+  <h2 class="sec">Le tue note</h2>
+  <textarea class="field" id="notes" placeholder="Cosa hai imparato? Cosa non ti è chiaro?">${esc(p.notes)}</textarea>
+  <button class="btn" id="extra">Chiedi a Claude un esercizio in più</button>
+  ${isDone(s) ? `<button class="btn" id="reopen">Segna come non completata</button>`
+    : `<button class="btn good" id="complete" ${all ? "" : "disabled"}>${all ? (passed ? "Completa la sessione" : "Completa comunque la sessione") : "Segna tutti i passi per completare"}</button>`}`;
+  window.scrollTo(0, sy);
+}
+function renderSettings(){
+  $("#app").innerHTML = `<h1 style="font-size:28px;margin:8px 0 0">Impostazioni</h1>
+  <div class="card"><h2 style="font-size:18px">Backup dei progressi</h2>
+    <p class="muted small">I progressi sono salvati solo su questo iPhone. Fai un backup ogni settimana e salvalo in File o iCloud Drive.</p>
+    <div class="actions"><button class="btn primary" id="backup">Salva backup</button><button class="btn" id="restore">Ripristina</button></div></div>
+  <div class="card"><h2 style="font-size:18px">Aggiornamenti</h2>
+    <p class="muted small">Quando Claude aggiorna il percorso, le nuove lezioni arrivano da sole all'apertura con connessione. I tuoi progressi restano.</p>
+    <button class="btn" id="checkupd">Cerca aggiornamenti</button>
+    <p class="muted small" style="margin-top:10px">App ${APP_VERSION} · Contenuti ${esc(C.version)} del ${esc(C.updated)}</p></div>
+  <div class="card"><h2 style="font-size:18px">Collegamenti</h2>
+    <a class="platform" href="../" ><div><span class="muted">Progetto àncora</span>Diario di Viaggio</div>${I.ext}</a></div>
+  <div class="card"><h2 style="font-size:18px">Ricomincia</h2>
+    <p class="muted small">Cancella tutti i progressi su questo telefono.</p><button class="btn" id="reset" style="color:var(--bad)">Azzera i progressi</button></div>`;
+}
+
+/* ---------- dialogs ---------- */
+function confirmSheet(title, text, ok){
+  return new Promise(res => {
+    const o = document.createElement("div"); o.className = "overlay";
+    o.innerHTML = `<div class="sheet"><h2 style="font-size:22px">${esc(title)}</h2><p class="muted">${esc(text)}</p><div class="actions"><button class="btn" data-no>Annulla</button><button class="btn primary" data-ok>${esc(ok)}</button></div></div>`;
+    o.querySelector("[data-no]").onclick = () => { o.remove(); res(false); };
+    o.querySelector("[data-ok]").onclick = () => { o.remove(); res(true); };
+    document.body.appendChild(o);
+  });
+}
+function celebrate(s, next){
+  const o = document.createElement("div"); o.className = "overlay";
+  const doneCount = ALL.filter(isDone).length;
+  o.innerHTML = `<div class="sheet celebrate"><div class="big">${exercisePassed(s) ? "★" : "✓"}</div><h2 style="font-size:24px;margin-top:8px">Sessione completata</h2>
+    <p class="muted">${doneCount} di ${ALL.length} sessioni · ${streak()} ${streak() === 1 ? "giorno" : "giorni"} di fila</p>
+    ${next ? `<p style="font-weight:600">Prossima: ${esc(next.title)}</p>` : ""}
+    <div class="actions"><button class="btn" data-home>Torna a Oggi</button>${next ? `<button class="btn primary" data-next>Vai alla prossima</button>` : ""}</div></div>`;
+  o.querySelector("[data-home]").onclick = () => { o.remove(); S.open = null; S.tab = "oggi"; render(); window.scrollTo(0,0); };
+  const nb = o.querySelector("[data-next]"); if (nb) nb.onclick = () => { o.remove(); S.open = next.id; render(); window.scrollTo(0,0); };
+  document.body.appendChild(o);
+}
+
+/* ---------- backup & updates ---------- */
+async function exportBackup(){
+  const json = JSON.stringify({app:"percorso-ai", exportedAt:new Date().toISOString(), progress:P});
+  const name = "percorso-backup-" + today() + ".json", file = new File([json], name, {type:"application/json"});
+  try { if (navigator.canShare && navigator.canShare({files:[file]})) { await navigator.share({files:[file], title:"Backup Percorso AI"}); return; } }
+  catch(e){ if (e && e.name === "AbortError") return; }
+  const a = document.createElement("a"); a.href = URL.createObjectURL(file); a.download = name; document.body.appendChild(a); a.click(); a.remove();
+}
+async function importBackup(f){
+  try { const d = JSON.parse(await f.text()); if (d.app !== "percorso-ai" || !d.progress) throw 0;
+    if (!(await confirmSheet("Ripristinare il backup?", "I progressi del backup sostituiranno quelli attuali.", "Ripristina"))) return;
+    P = d.progress; saveP(); render(); toast("Backup ripristinato"); }
+  catch(e){ toast("Questo file non è un backup del percorso"); }
+}
+let swReg = null;
+async function registerSW(){
+  if (!("serviceWorker" in navigator)) return;
+  try { swReg = await navigator.serviceWorker.register("sw.js");
+    let reloaded = false; navigator.serviceWorker.addEventListener("controllerchange", () => { if (!reloaded) { reloaded = true; location.reload(); } });
+  } catch(e){}
+}
+
+/* ---------- events ---------- */
+document.addEventListener("click", async e => {
+  const b = e.target.closest("button"); if (!b) return;
+  if (b.dataset.tab){ S.tab = b.dataset.tab; S.open = null; render(); window.scrollTo(0,0); return; }
+  if (b.dataset.open){ S.open = b.dataset.open; render(); window.scrollTo(0,0); return; }
+  if (b.id === "back"){ S.open = null; render(); return; }
+  if (b.id === "backup") return exportBackup().catch(() => toast("Backup non riuscito"));
+  if (b.id === "restore"){ const r = $("#restorepick"); r.value = ""; r.click(); return; }
+  if (b.id === "checkupd"){
+    try { if (swReg) await swReg.update(); await loadC(); render(); toast("Contenuti aggiornati alla versione " + C.version); }
+    catch(err){ toast("Serve la connessione per controllare"); } return; }
+  if (b.id === "reset"){ if (await confirmSheet("Azzerare i progressi?", "Tutte le sessioni torneranno da fare. Consiglio: salva prima un backup.", "Azzera")){ P = {sessions:{}, days:[]}; saveP(); render(); toast("Progressi azzerati"); } return; }
+  const s = S.open && byId(S.open); if (!s) return;
+  const p = sp(s.id);
+  if (b.dataset.step){ const st = p.steps[b.dataset.step] || (p.steps[b.dataset.step] = {}); st.done = !st.done; if (st.done){ markActive(); if (!st.level) st.level = 0; } saveP(); renderSession(s); return; }
+  if (b.dataset.level){ const st = p.steps[b.dataset.level] || (p.steps[b.dataset.level] = {}); const v = +b.dataset.v; st.level = st.level === v ? 0 : v; markActive(); saveP(); renderSession(s); return; }
+  if (b.dataset.quiz !== undefined){ p.quiz[b.dataset.quiz] = +b.dataset.v; markActive(); saveP(); renderSession(s); return; }
+  if (b.dataset.crit !== undefined){ p.criteria[b.dataset.crit] = !p.criteria[b.dataset.crit]; markActive(); saveP(); renderSession(s); return; }
+  if (b.id === "complete"){ p.completedAt = new Date().toISOString(); markActive(); saveP(); renderSession(s); celebrate(s, nextSession()); return; }
+  if (b.id === "reopen"){ delete p.completedAt; saveP(); renderSession(s); return; }
+  if (b.id === "extra"){
+    const weak = s.steps.filter(st => (p.steps[st.id]||{}).level && (p.steps[st.id]||{}).level < 3).map(st => "- " + st.text.replace(/\s\d+\s?min$/, ""));
+    const txt = `Sto seguendo un percorso per diventare un operatore AI esperto. Ho appena fatto la sessione «${s.title}» (settimana ${s.week}). Obiettivo: ${s.goal}
+${weak.length ? "I passi su cui non mi sento ancora sicuro:\n" + weak.join("\n") + "\n" : ""}${p.notes ? "Le mie note: " + p.notes + "\n" : ""}
+Preparami un esercizio pratico nuovo, diverso da quelli del corso, per verificare se ho capito. Dammi il compito, aspetta la mia risposta e poi correggila con un voto da 1 a 10 e un consiglio.`;
+    try { await navigator.clipboard.writeText(txt); toast("Copiato: incollalo in una chat con Claude"); } catch(err){ toast("Copia non riuscita"); }
+    return;
+  }
+});
+let noteTimer = null;
+document.addEventListener("input", e => { if (e.target.id === "notes" && S.open){ sp(S.open).notes = e.target.value; clearTimeout(noteTimer); noteTimer = setTimeout(saveP, 500); } });
+$("#restorepick").addEventListener("change", e => { const f = e.target.files[0]; if (f) importBackup(f); });
+
+/* ---------- boot ---------- */
+(async function boot(){
+  loadP(); registerSW();
+  try { await loadC(); } catch(e){ $("#app").innerHTML = `<div class="card">Non riesco a caricare il percorso. Controlla la connessione e riapri l'app.</div>`; return; }
+  render();
+})();
+})();
+</script>
+</body>
+</html>
